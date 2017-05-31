@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="cs">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <title>
+            
+                Testování
+            
+        </title>
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+
+        
+
+        <link rel="stylesheet" href="/static/css/nausce.css">
+        <link rel="stylesheet" href="/static/css/body.css">
+        <link rel="stylesheet" href="/static/css/pygments-lovelace-style.css">
+        <link rel="stylesheet" href="/static/css/ipython.css">
+
+        
+
+        
+        
+
+        <style>
+            
+    
+
+        </style>
+    </head>
+    
+    <body>
+        
+        <nav class="header">
+            <ul class="container menu">
+                <li><a href="/" class="logo"><h1>Nauč se Python!</h1></a></li>
+                <li><a href="/courses/" class="menu-link"><h2>Materiály</h2></a></li>
+                <li><a href="/runs/" class="menu-link"><h2>Kurzy</h2></a></li>
+            </ul>
+        </nav>
+        
+
+        
+
+        
+
+<div class="page">
+    <div class="container">
+
+        
+
+        
+            <h1>Testování</h1>
+<p>Programátorská práce nespočívá jen v tom, program napsat.
+Důležité je si i ověřit, že opravdu funguje (a případně ho pak opravit).
+Ověřování, že program funguje, se říká <em>testování</em>.</p>
+<p>Zatím jsi asi svoje programy testoval/a tak, že jsi
+je zkusil/a spustit, něco zadal{aa}, a podíval/a se
+jestli jsou výsledky v pořádku.
+U větších programů, které budou mít více a více
+možností, ale bude těžší a těžší takhle zkontrolovat,
+jestli všechny ty možnosti fungují jak mají.</p>
+<p>Proto si programátoři, místo aby program zkoušeli ručně, píšou jiné programy,
+které testují za ně.</p>
+<p><em>Automatické testy</em> jsou funkce, které
+zkontrolují, že náš program funguje správně.
+Spuštěním testů můžeš kdykoli ověřit že kód funguje.
+Hlavní výhoda je, že když v otestovaném kódu
+v budoucnu uděláš nějakou změnu,
+testy ověří, že jsi nerozbil/a nic co dříve
+fungovalo.</p>
+<h2>Instalace knihovny pytest</h2>
+<p>Na testy je v samotném Pythonu zabudovaná knihovna <code>unittest</code>.
+My ji však používat nebudeme: nainstalujeme si
+kniihovnu <code>pytest</code>, která se používá
+mnohem jednodušeji a je velice populární.</p>
+<p>Je ji ale potřeba nainstalovat.</p>
+<div class="admonition note"><p>Zatím jsme v kurzu pracovaly s tím, co se instaluje
+se samotným Pythonem.
+Kromě věcí jako <code>math</code> nebo <code>turtle</code> ale existuje ale spousta
+dalších užitečných <em>knihoven</em>, které se dají jednoduše doinstalovat
+a používat.</p>
+</div><p>Následující příkaz nainstaluje do aktivního virtuálního prostředí knihovnu
+<code>pytest</code>.
+Je to příkaz příkazové řádky, podobně jako
+<code>cd</code> nebo <code>mkdir</code>; nezadávej ho do Pythonu.</p>
+<p>(Jak se dělá a spouští virtuální prostředí
+ses naučil/a při <a href="/lessons/beginners/install/">instalaci Pythonu</a>,
+ale teprve teď to začíná být důležité. Ujisti se, že máš virtuální prostředí
+aktivované.)</p>
+<div class="highlight"><pre><span></span><span class="gp">(venv)$</span> python -m pip install pytest
+</pre></div><div class="admonition note"><p class="admonition-title">Co to znamená?</p>
+<p><code>python -m pip</code> zavolá Python s tím, že má pustit modul
+<code>pip</code>. Tento modul umí instalovat nebo
+odinstalovávat knihovny.
+Jestli si pamatuješ vytváření virtuálního prostředí, použil/a jsi tam
+příkaz <code>python -m venv</code>.
+Modul <code>venv</code> umí vytvářet virtuální prostředí.
+No a slova <code>install pytest</code> říkají Pipu, že má nainstalovat <code>pytest</code>.</p>
+<p>Nápověda k použití Pipu se dá vypsat pomocí příkazu
+<code>python -m pip --help</code>.</p>
+</div><div class="admonition warning"><p class="admonition-title">Pro Windows</p>
+<p>Jsi-li na Windows, od této lekce bude důležité
+spouštět Pythoní programy pomocí <code>python program.py</code>, ne jen
+<code>program.py</code>.
+Ačkoli se v těchto materiálech všude používá <code>python</code> na začátku, zatím
+mohlo všechno fungovat i bez toho.
+Program se ale bez příkazu <code>python</code> spouští v jiném Pythonu,
+než v tom z virtuálního prostředí.</p>
+</div><h2>Psaní testů</h2>
+<p>Tady je funkce <code>secti</code>, která umí sečíst
+dvě čísla, a další funkce která testuje, jestli se
+<code>secti</code> pro určité hodnoty
+chová správně.</p>
+<p>Kód si opiš do souboru <code>test_secteni.py</code>,
+v novém prázdném adresáři.
+Pro <code>pytest</code> je (ve výchozím nastavení)
+důležité, aby jména jak souborů s testy, tak
+samotných testovacích funkcí, začínala na
+<code>test_</code>.</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">secti</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+
+<span class="k">def</span> <span class="nf">test_secti</span><span class="p">():</span>
+    <span class="k">assert</span> <span class="n">secti</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
+</pre></div><p>Co se v té testovací funkci děje?</p>
+<p>Příkaz <code>assert</code> vyhodnotí výraz za ním,
+a pokud výsledek není pravdivý, vyvolá výjimku,
+která způsobí že test selže.
+Můžeš si představit, že <code>assert a == b</code> dělá následující:</p>
+<div class="highlight"><pre><span></span><span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">a</span> <span class="o">==</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s1">&#39;Test selhal!&#39;</span><span class="p">)</span>
+</pre></div><p>Zatím <code>assert</code> nepoužívej jinde než v testovacích funkcích.
+V „normálním” kódu má <code>assert</code> vlastnosti,
+do kterých teď nebudeme zabředávat.</p>
+<h2>Spouštění testů</h2>
+<p>Testy se spouští zadáním příkazu
+<code>python -m pytest -v</code>,
+tedy v překladu: <strong>Python</strong>e, pusť
+<strong>m</strong>odul <strong>pytest</strong>,
+v „ukecaném” režimu (angl. <strong>v</strong>erbose).</p>
+<div class="highlight"><pre><code>$ python -m pytest -v test_secteni.py 
+<span style="font-weight: bold">============= test session starts =============</span>
+platform linux -- Python 3.6.0, pytest-3.0.6, py-1.4.32, pluggy-0.4.0 -- env/bin/python
+cachedir: .cache
+rootdir: naucse, inifile: 
+<span style="font-weight: bold">collecting ...</span> collected 1 items
+
+test_secteni.py::test_secti <span style="color: #00aa00">PASSED</span>
+
+<span style="color: #00aa00">============= 1 passed in 0.00 seconds =============</span></code></pre></div><p>Tento příkaz projde všechny soubory v aktuálním
+adresáři, jejichž jméno začíná na <code>test_</code>, zavolá v nich všechny funkce,
+jejichž jméno začíná na <code>test_</code>, a ověří, že nevyvolají žádnou výjimku.
+Pokud výjimka nastane, dá to velice červeně
+najevo, a přidá několik informací které můžou
+usnadnit nalezení a opravu chyby.</p>
+<h2>Testovací moduly</h2>
+<p>Testy se většinou nepíšou přímo ke kódu,
+ale do souboru vedle.
+Je to tak přehlednější, a taky to zjednodušuje
+distribuci – předávání kódu někomu, kdo ho chce
+jen spustit a testy nepotřebuje</p>
+<div class="admonition note"><p>Máš-li hotové 1D piškvorky, zkus si následující
+příklad.
+Jinak si rozděl soubor s testem sečítání: do
+<code>secteni.py</code> dej funkci <code>secti</code>,
+a do <code>test_secteni.py</code> test.
+Do <code>test_secteni.py</code> pak přidej
+<code>from secteni import secti</code>, aby byla
+funkce testu k dispozici.</p>
+</div><p>Vytvoř si modul <code>test_piskvorky</code> (tedy soubor
+<code>test_piskvorky.py</code>), a do něj napiš:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">piskvorky</span>
+
+<span class="k">def</span> <span class="nf">test_tah_na_prazdne_pole</span><span class="p">():</span>
+    <span class="n">pole</span> <span class="o">=</span> <span class="n">piskvorky</span><span class="o">.</span><span class="n">tah_pocitace</span><span class="p">(</span><span class="s1">&#39;--------------------&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">pole</span><span class="p">)</span> <span class="o">==</span> <span class="mi">20</span>
+    <span class="k">assert</span> <span class="n">pole</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="n">pole</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">19</span>
+</pre></div><p>Pak vedle něj (t.j. do stejného adresáře)
+zkopíruj svůj program
+<code>piskvorky.py</code>, ze kterého vyndej
+kód, který není ve funkcích
+(t.j. samotné volání funkce <code>piskvorky1d</code>).
+Příkazem <code>python -m pytest</code> teď můžeš
+kdykoli otestovat, že funkce <code>tah_pocitace</code>
+funguje s prázdným hracím polem!</p>
+<h2>Spouštěcí moduly</h2>
+<p>Jsi-li na sraze a nemáš-li hotové 1D piškvorky,
+následující sekce budou jen teorietické.
+Učíš-li se z domu, dodělej si Piškvorky před němi!</p>
+<p>Příkaz <code>import</code> provede všechny příkazy,
+které jsou v importovaném modulu: nejen definice
+funkcí, ale i všelijaké volání <code>print</code>, <code>input</code> nebo jiné příkazy mimo funkce.
+Má-li být modul použitelný na <code>import</code>, chceme se
+většinou podobných efektů vyvarovat.</p>
+<p>Konkrétně v Piškvorkách: Definice funkcí
+(příkazy <code>def</code> a všechno v nich)
+jen definují funkce, nemají žádný další účinek,
+ale <em>volání</em> funkce <code>piskvorky1d</code> spustí hru: zavolá se <code>tah_hrace</code>
+a z ní i <code>input</code>.
+Testy ale nemají jak se ptát uživatele na vstup, takže v nich <code>input</code> nefunguje.
+Volání funkce <code>piskvorky1d</code> je proto potřeba odstranit.</p>
+<p>No jo, ale po takovém odstranění
+už nejde jednoduše spustit hra! Co s tím?</p>
+<p>Můžeš na to vytvořit nový modul.
+Pojmenuj ho <code>hra.py</code>, a dej to něj jenom to odstraněné volání:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">piskvorky</span>
+
+<span class="n">piskvorky</span><span class="o">.</span><span class="n">piskvorky1d</span><span class="p">()</span>
+</pre></div><p>Tenhle modul nebudeš moci testovat (protože nepřímo volá funkci <code>input()</code>),
+ale můžeš ho spustit, když si budeš
+chtít zahrát.
+Protože k němu nemáš napsané testy, nepoznáš
+z nich, když se takový spouštěcí modul rozbije.
+Měl by být proto nejjednodušší.</p>
+<h2>Pozitivní a negativní testy</h2>
+<p>Můžeš testovat i reakci programu na
+neočekávaný vstup, například funkce
+<code>tah_pocitace</code> by měla způsobit
+chybu (třeba <code>ValueError</code>),
+když je herní pole už plné.</p>
+<p>Na to použij příkaz <code>with</code> a funkci <code>raises</code> naimportovanou
+z modulu <code>pytest</code>.
+Jak příkaz <code>with</code> přesně funguje se dozvíme později;
+teď stačí říct, že ověří, že odsazený blok kódu
+pod ním vyvolá danou výjimku:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pytest</span>
+
+<span class="kn">import</span> <span class="nn">piskvorky</span>
+
+<span class="k">def</span> <span class="nf">test_tah_chyba</span><span class="p">():</span>
+    <span class="k">with</span> <span class="n">pytest</span><span class="o">.</span><span class="n">raises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+        <span class="n">piskvorky</span><span class="o">.</span><span class="n">tah_pocitace</span><span class="p">(</span><span class="s1">&#39;oxoxoxoxoxoxoxoxoxox&#39;</span><span class="p">)</span>
+</pre></div><p>Testy, které kontrolují reakci na „špatný“ vstup,
+se jmenují <em>negativní testy</em>.
+Většinou kontrolují že nastane (správná) chyba,
+nebo nějaký negativní výsledek (např.
+že volání jako <code>cislo_je_sude(7)</code> vrátí <code>False</code>).
+Když kód pak použiješ ve větším programu,
+můžeš si být jistá, že při špatném volání
+dostaneš srozumitelnou chybu – tedy takovou,
+která se co nejsnadněji opravuje.</p>
+
+        
+
+        
+
+    </div>
+</div>
+
+
+
+        <script type="text/javascript" src="/static/js/solutions.js"></script>
+
+        <div class="footer container">
+            <hr>
+            <div class="lesson-attribution">
+                <p>Uprav tuto stránku na <a href="https://github.com/pyvec/naucse.python.cz/blob/master/lessons/beginners/testing/index.md">GitHubu</a>.</p>
+
+                
+                    
+                        <p>Pro PyLadies Brno napsal Petr Viktorin, 2014-2017.</p>
+
+                    
+                    
+                        <p>
+                            Licence:
+                            <a href="https://creativecommons.org/licenses/by-sa/4.0/">
+                                Creative Commons Attribution-ShareAlike 4.0 International
+                            </a>
+                        </p>
+                    
+                
+            </div>
+        </div>
+
+        <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+        
+
+    </body>
+</html>

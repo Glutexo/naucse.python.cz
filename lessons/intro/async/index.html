@@ -1,0 +1,1055 @@
+<!doctype html>
+<html lang="cs">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <title>
+            
+                Generátory a AsyncIO
+            
+        </title>
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+
+        
+
+        <link rel="stylesheet" href="/static/css/nausce.css">
+        <link rel="stylesheet" href="/static/css/body.css">
+        <link rel="stylesheet" href="/static/css/pygments-lovelace-style.css">
+        <link rel="stylesheet" href="/static/css/ipython.css">
+
+        
+
+        
+        
+
+        <style>
+            
+    
+
+        </style>
+    </head>
+    
+    <body>
+        
+        <nav class="header">
+            <ul class="container menu">
+                <li><a href="/" class="logo"><h1>Nauč se Python!</h1></a></li>
+                <li><a href="/courses/" class="menu-link"><h2>Materiály</h2></a></li>
+                <li><a href="/runs/" class="menu-link"><h2>Kurzy</h2></a></li>
+            </ul>
+        </nav>
+        
+
+        
+
+        
+
+<div class="page">
+    <div class="container">
+
+        
+
+        
+            <h1>Generátory a AsyncIO</h1>
+<p>Na část toto cvičení bude opět potřeba PyQt5.
+Můžete použít virtualenv z minula, nebo PyQt5 nainstalovat znovu (viz <a href="/lessons/intro/pyqt/">minulá lekce</a>).
+(Nejde-li to, nevadí – úplně nezbytné dnes PyQt nebude.)</p>
+<p>Další knihovny pro dnešní den:</p>
+<div class="highlight"><pre><code>python -m pip install --upgrade pip
+python -m pip install notebook aiohttp quamash
+
+</code></pre></div><p>Případně pro Python 3.3:</p>
+<div class="highlight"><pre><code>python -m pip install asyncio
+
+
+</code></pre></div><hr>
+<p>Dnes se podíváme na dvě témata, která spolu souvisí čím dál tím méně, ale stále je
+dobré je pochopit společně.
+Napřed si ukážeme <em>generátory</em>, a poté si vysvětlíme <em>asynchronní programování</em>.</p>
+<h1>Generátory</h1>
+<p>Nejdříve si popíšeme, jak v Pythonu fungují <em>generátory</em>, tedy funkce s příkazem <code>yield</code>.
+Předpokládám, že většina z vás už nějaký jednoduchý generátor napsala, ale pojďme si je
+vysvětlit od úplného začátku: od toho, jak se v Pythonu iteruje.</p>
+<h2>Iterace</h2>
+<p>Když je v Pythonu potřeba iterovat přes nějakou kolekci, použije se <em>iterační protokol</em>,
+který pracuje se dvěma druhy objektů: s <em>iterovatelnými objekty</em> a s <em>iterátory</em>.</p>
+<p>Iterovatelné objekty (<em>iterables</em>) se vyznačují tím, že je na ně možné zavolat
+funkci <code>iter()</code>, která vrátí příslušný iterátor:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="nb">iter</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+<span class="o">&lt;</span><span class="n">list_iterator</span> <span class="nb">object</span> <span class="n">at</span> <span class="mi">0</span><span class="n">x</span><span class="o">...&gt;</span>
+</pre></div><p>Na iterátor pak je možné opakovaně volat funkci <code>next()</code>, čímž dostáváme jednotlivé
+prvky iterace.
+Po vyčerpání iterátoru způsobuje <code>next()</code> výjimku <code>StopIteration</code>:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">it</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="mi">1</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="mi">2</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="mi">3</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="o">...</span>
+<span class="ne">StopIteration</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="o">...</span>
+<span class="ne">StopIteration</span>
+</pre></div><p>Zároveň platí, že každý iterátor je iterovatelný: zavoláním <code>iter()</code> na iterátor
+dostaneme ten stejný iterátor (nikoli jeho kopii) zpět.
+Naopak to ale obecně neplatí: seznamy jsou iterovatelné, ale nejsou samy o sobě
+iterátory.</p>
+<p>Iterátor je ve většině případů "malý" objekt, který si "pamatuje" jen původní iterovatelný
+objekt a aktuální pozici. Příklady jsou iterátor seznamů (<code>iter([])</code>), slovníků (<code>iter({})</code>),
+n-tic, nebo množin, iterátor pro <code>range</code>, a podobně.</p>
+<p>Iterátory ale můžou být i "větší": třeba otevřený soubor je iterátor, z něhož <code>next()</code>
+načítá jednotlivé řádky.</p>
+<h2>Generátory</h2>
+<p>Asi nejzajímavější druh iterátoru je tzv. <em>generátor</em>: funkce, která umí postupně
+dávat k dispozici hodnoty.
+Definuje se pomocí klíčového slova <code>yield</code>: každá funkce, která obsahuje <code>yield</code>,
+je <em>generátorová funkce</em> (angl. <em>generator function</em>).</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">generate2</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;generates 2 numbers&quot;&quot;&quot;</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;A&#39;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="mi">0</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;B&#39;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="mi">1</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
+</pre></div><p>Zavoláním takové funkce dostáváme <em>generátorový iterátor</em> (angl. <em>generator iterator</em>):</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">generate2</span><span class="p">()</span>
+<span class="o">&lt;</span><span class="n">generator</span> <span class="nb">object</span> <span class="n">generate2</span> <span class="n">at</span> <span class="mi">0</span><span class="n">x</span><span class="o">...&gt;</span>
+</pre></div><p>Voláním <code>next()</code> se pak stane zajímavá věc: funkce se provede až po první <code>yield</code>,
+tam se <em>zastaví</em>, a hodnota <code>yield</code>-u se vrátí z <code>next()</code>.
+Při dalším volání se začne provádět zbytek funkce od místa, kde byla naposled
+zastavena.</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">it</span> <span class="o">=</span> <span class="n">generate2</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="n">A</span>
+<span class="mi">0</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="n">B</span>
+<span class="mi">1</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="n">C</span>
+<span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="o">...</span>
+<span class="ne">StopIteration</span>
+</pre></div><p>Tahle vlastnost přerušit provádění funkce je velice užitečná nejen pro vytváření
+sekvencí, ale má celou řadu dalších užití.
+Existuje třeba dekorátor, který generátorovou funkci s jedním <code>yield</code> převede na <em>context manager</em>:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">contextlib</span>
+
+<span class="nd">@contextlib.contextmanager</span>
+<span class="k">def</span> <span class="nf">ctx_manager</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Entering&#39;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="mi">123</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Exiting&#39;</span><span class="p">)</span>
+
+
+<span class="k">with</span> <span class="n">ctx_manager</span><span class="p">()</span> <span class="k">as</span> <span class="n">obj</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Inside context, with&#39;</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
+</pre></div><p>Vše před <code>yield</code> se provede při vstupu do kontextu, hodnota <code>yield</code> se předá
+dál, a vše po <code>yield</code> se provede na konci.
+Můžeme si představit, že místo <code>yield</code> se "doplní" obsah bloku <code>with</code> –
+funkce se tam na chvíli zastaví a může se tedy provádět něco jiného.</p>
+<h2>Vracení hodnot z generátorů</h2>
+<p>V rámci generátorové funkce můžeme použít i <code>return</code>, který funkci ukončí.
+Vrácená hodnota se však při normální iteraci (např. ve <code>for</code>) nepoužije.
+Objeví se pouze jako hodnota výjimky <code>StopIteration</code>, která signalizuje konec
+iterace:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">generator</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Yield two numbers and return their sum&quot;&quot;&quot;</span>
+    <span class="k">yield</span> <span class="n">a</span>
+    <span class="k">yield</span> <span class="n">b</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+</pre></div><div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">it</span> <span class="o">=</span> <span class="n">generator</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="mi">2</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="mi">3</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="n">File</span> <span class="s2">&quot;&lt;stdin&gt;&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">1</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+<span class="ne">StopIteration</span><span class="p">:</span> <span class="mi">5</span>
+</pre></div><h2>Obousměrná komunikace</h2>
+<p>Oproti normálním iterátorům, které hodnoty jen poskytují, mají generátory metodu
+<code>send()</code>, kterou je možné posílat hodnoty <em>do</em> běžícího generátoru.
+Klíčové slovo <code>yield</code> totiž může fungovat jako výraz, a tento výraz nabývá poslanou
+hodnotu (nebo <code>None</code>, byl-li použit normální <code>next()</code>).</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">running_sum</span><span class="p">():</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="p">(</span><span class="k">yield</span> <span class="n">total</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num</span><span class="p">:</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="n">num</span>
+
+<span class="n">it</span> <span class="o">=</span> <span class="n">running_sum</span><span class="p">()</span>
+<span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>  <span class="c1"># pro první iteraci nelze použít send() -- nečekáme zatím na yield-u</span>
+<span class="n">it</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">it</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="k">assert</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span>
+</pre></div><p>Upřímě řečeno, metoda <code>send()</code> není příliš užitečná.
+(Když byste něco takového potřebovali, radši si napište třídu, která si bude
+stav uchovávat v atributech, a měňte ji třeba metodami. Bude to pravděpodobně
+přehlednější.)
+Existuje ale příbuzná metoda, která už je užitečnější: <code>throw()</code>.
+Ta do generátoru "vhodí" výjimku.
+Z pohledu generátorové funkce to vypadá, jako by výjimka nastala na příkazu
+<code>yield</code>.</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">report_exception</span><span class="p">():</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Death by&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="mi">123</span>
+</pre></div><div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">it</span> <span class="o">=</span> <span class="n">report_exception</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>  <span class="c1"># opět – v první iteraci nelze throw() použít</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">value</span> <span class="o">=</span> <span class="n">it</span><span class="o">.</span><span class="n">throw</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">())</span>
+<span class="n">Death</span> <span class="n">by</span> <span class="ne">ValueError</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">value</span>
+<span class="mi">123</span>
+</pre></div><p>Podobná věc se děje, když generátorový iterátor zanikne: Python do generátoru
+"vhodí" výjimku GeneratorExit.
+Ta dědí z <code>BaseException</code>, ale ne <code>Exception</code>, takže klasické <code>except Exception:</code>
+ji nechytí (ale např. <code>finally</code> funguje jak má).
+Pokud generátor tuto výjimku chytá, měl by se co nejdřív ukončit.
+(Když to neudělá a provede další <code>yield</code>, Python ho ukončí "násilně".)</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">gc</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">it</span> <span class="o">=</span> <span class="n">report_exception</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="k">del</span> <span class="n">it</span><span class="p">;</span> <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>  <span class="c1"># zbavíme se objektu &quot;it&quot; (i v interpretech, které nepoužívají reference counting)</span>
+<span class="n">Death</span> <span class="n">by</span> <span class="ne">GeneratorExit</span>
+<span class="ne">Exception</span> <span class="n">ignored</span> <span class="ow">in</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">generator</span> <span class="nb">object</span> <span class="n">report_exception</span> <span class="n">at</span> <span class="mi">0</span><span class="n">x</span><span class="o">...&gt;</span>
+<span class="ne">RuntimeError</span><span class="p">:</span> <span class="n">generator</span> <span class="n">ignored</span> <span class="ne">GeneratorExit</span>
+<span class="mi">0</span>
+</pre></div><h2>Kombinace generátorů</h2>
+<p>Máme následující generátor:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">dance</span><span class="p">():</span>
+    <span class="k">yield</span> <span class="s1">&#39;putting hands forward&#39;</span>
+    <span class="k">yield</span> <span class="s1">&#39;putting hands down&#39;</span>
+    <span class="k">yield</span> <span class="s1">&#39;turning around&#39;</span>
+    <span class="k">yield</span> <span class="s1">&#39;jumping&#39;</span>
+    <span class="k">yield</span> <span class="s1">&#39;putting hands forward&#39;</span>
+    <span class="k">yield</span> <span class="s1">&#39;putting hands down&#39;</span>
+
+<span class="k">for</span> <span class="n">action</span> <span class="ow">in</span> <span class="n">dance</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+</pre></div><p>Opakuje se v něm jistá sekvence, kterou bychom jako správní programátoři chtěli
+vyčlenit do samostatné funkce.
+Pomocí samotného <code>yield</code> to ale jde celkem těžko:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">dance_hands</span><span class="p">():</span>
+    <span class="k">yield</span> <span class="s1">&#39;putting hands forward&#39;</span>
+    <span class="k">yield</span> <span class="s1">&#39;putting hands down&#39;</span>
+
+<span class="k">def</span> <span class="nf">dance</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">action</span> <span class="ow">in</span> <span class="n">dance_hands</span><span class="p">():</span>
+        <span class="k">yield</span> <span class="n">action</span>
+    <span class="k">yield</span> <span class="s1">&#39;turning around&#39;</span>
+    <span class="k">yield</span> <span class="s1">&#39;jumping&#39;</span>
+    <span class="k">for</span> <span class="n">action</span> <span class="ow">in</span> <span class="n">dance_hands</span><span class="p">():</span>
+        <span class="k">yield</span> <span class="n">action</span>
+
+<span class="k">for</span> <span class="n">action</span> <span class="ow">in</span> <span class="n">dance</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+</pre></div><p>Tohle počtu řádků příliš nepomohlo. Existuje lepší způsob – místo:</p>
+<div class="highlight"><pre><span></span>    <span class="k">for</span> <span class="n">action</span> <span class="ow">in</span> <span class="n">dance_hands</span><span class="p">():</span>
+        <span class="k">yield</span> <span class="n">action</span>
+</pre></div><p>můžeme delegovat vytváření podsekvence na jiný generátor pomocí:</p>
+<div class="highlight"><pre><span></span>    <span class="k">yield from</span> <span class="n">dance_hands</span><span class="p">()</span>
+</pre></div><p>Příkaz <code>yield from</code> deleguje nejen hodnoty, které jdou z generátoru "ven" pomocí
+<code>yield</code>, ale i ty, které jdou "dovnitř" pomocí <code>send()</code> či <code>throw()</code>.
+A dokonce funguje jako výraz, jehož hodnota odpovídá tomu, co
+daný generátor vrátil:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">dance_hands</span><span class="p">():</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="p">(</span><span class="k">yield</span> <span class="s1">&#39;putting hands forward&#39;</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="s1">&#39;putting hands down&#39;</span>
+    <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="s1">&#39;putting {},- in pocket&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="mi">0</span>
+
+<span class="k">def</span> <span class="nf">dance</span><span class="p">():</span>
+    <span class="n">profit</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">profit</span> <span class="o">+=</span> <span class="p">(</span><span class="k">yield from</span> <span class="n">dance_hands</span><span class="p">())</span>
+    <span class="k">yield</span> <span class="s1">&#39;turning around&#39;</span>
+    <span class="k">yield</span> <span class="s1">&#39;jumping&#39;</span>
+    <span class="n">profit</span> <span class="o">+=</span> <span class="p">(</span><span class="k">yield from</span> <span class="n">dance_hands</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">profit</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="s1">&#39;spending {},- on sweets&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">profit</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">performance</span><span class="p">():</span>
+    <span class="n">it</span> <span class="o">=</span> <span class="n">dance</span><span class="p">()</span>
+    <span class="k">print</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">))</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">it</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="mi">100</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">action</span> <span class="ow">in</span> <span class="n">it</span><span class="p">:</span>  <span class="c1"># pokračujeme v načaté iteraci – implicitní &quot;iter(it)&quot; vrací zase &quot;it&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+</pre></div><div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">performance</span><span class="p">()</span>
+<span class="n">putting</span> <span class="n">hands</span> <span class="n">forward</span>
+<span class="n">putting</span> <span class="n">hands</span> <span class="n">down</span>
+<span class="n">putting</span> <span class="mi">100</span><span class="p">,</span><span class="o">-</span> <span class="ow">in</span> <span class="n">pocket</span>
+<span class="n">turning</span> <span class="n">around</span>
+<span class="n">jumping</span>
+<span class="n">putting</span> <span class="n">hands</span> <span class="n">forward</span>
+<span class="n">putting</span> <span class="n">hands</span> <span class="n">down</span>
+<span class="n">spending</span> <span class="mi">100</span><span class="p">,</span><span class="o">-</span> <span class="n">on</span> <span class="n">sweets</span>
+</pre></div><h1>AsyncIO</h1>
+<p>A teď něco úplně jiného: asynchronní programování.</p>
+<p>Jak jsme si řekli v lekci o C API, Python má globální zámek, takže pythonní kód
+může běžet jen v jednom vlákně najednou.
+Taky jsme si řekli, že to většinou příliš nevadí: typický síťový nebo GUI program
+stráví hodně času čekáním na události (odpověď z internetu, kliknutí myší atp.),
+a u tohoto čekání není potřeba držet zámek zamčený.</p>
+<p>Servery typicky při zpracovávání požadavku stráví <em>většinu</em> času síťovou komunikací.
+Proto se často spouští několik vláken nebo přímo procesů najednou, aby se mohl vytížit
+procesor.
+Při velkém množství vláken ale nastanou dva problémy.
+První je, že vláken nemůže být neomezeně mnoho.
+Každé vlákno potřebuje vlastní stack, tj. poměrně velkou část paměti; a počet vláken
+bývá omezen i jinak (na Linuxu je globální limit počtu procesů, do kterého se počítají
+i jednotlivá vlákna – viz <code>cat /proc/sys/kernel/threads-max</code>).
+Druhý problém je, že přepnutí z jednoho vlákna do druhého se může stát <em>kdykoli</em>.
+Ověřit si, že je na to program připravený, je poměrně složité, a na zajištění
+správné funkčnosti je potřeba zamykání či jiné techniky, které bývají relativně
+pomalé, a tak se jim programátoři snaží vyhnout.
+A chyby vzniklé nesprávným ošetřením přepínání vláken bývají složité na odhalení
+a vyřešení. Pokud jste absolvovali předmět BI-OSY, jistě víte, o čem mluvíme.</p>
+<p>Vlákna jsou příklad <em>preemptivního multitaskingu</em>, kdy operační systém rozhoduje,
+kdy přepne z jednoho vlákna do druhého, a tuto změnu si prakticky vynutí.
+Jednotlivá vlákna se s tím musí vyrovnat.
+Alternativou je <em>kooperativní multitasking</em>, kdy se jednotlivé úlohy umí <em>samy</em> vzdát
+procesorového času, když např. čekají na síťovou komunikaci.
+Programátor tak ví, že dokud takto nepředá kontrolu ostatním úlohám, žádná jiná
+úloha mu pod rukama nemůže měnit stav procesu.
+Na druhou stranu je ale potřeba dostatečně často kontrolu předávat, aby se všechny
+úlohy dostaly ke slovu.
+Tuto techniku tak nemůže používat operační systém, pod kterým můžou běžet i špatně
+napsané programy. Ale v rámci jednoho procesu se to dá s úspěchem využít.</p>
+<p>Pojďme si to ukázat na příkladu.
+Místo síťové komunikace budeme pro názornost čekat, až uplyne nějaký čas: napíšeme si
+jednoduchou animaci.
+V reálném serveru bychom místo čekání, než uplyne určitý počet sekund, čekali na odpověď
+ze sítě, ale principy zůstávají stejné.</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+
+<span class="k">def</span> <span class="nf">print_blinky</span><span class="p">(</span><span class="n">blinky</span><span class="p">):</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">blinky</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Blinky</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="s1">&#39;(o.o)&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_face</span>
+
+    <span class="k">def</span> <span class="nf">set_face</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="n">new</span>
+        <span class="n">print_blinky</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(-.-)&#39;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(o.o)&#39;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+
+<span class="n">Blinky</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div><p>Chceme-li spustit několik takových animací, můžeme to udělat ve vláknech:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+
+<span class="k">def</span> <span class="nf">print_blinkies</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">blinky</span> <span class="ow">in</span> <span class="n">blinkies</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">blinky</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">end</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Blinky</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="s1">&#39;(o.o)&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_face</span>
+
+    <span class="k">def</span> <span class="nf">set_face</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="n">new</span>
+        <span class="n">print_blinkies</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(-.-)&#39;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(o.o)&#39;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+
+<span class="n">blinkies</span> <span class="o">=</span> <span class="p">[</span><span class="n">Blinky</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)]</span>
+
+<span class="k">for</span> <span class="n">blinky</span> <span class="ow">in</span> <span class="n">blinkies</span><span class="p">:</span>
+    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">blinky</span><span class="o">.</span><span class="n">run</span><span class="p">)</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</pre></div><p>Ale po docela jednoduchých změnách se může stát, že se jednotlivá vlákna začnou
+přepínat nevhodně, a celý program se rozsype.
+Nám stačí malá změna ve funkci <code>print_blinkies</code> (podobná funkce by v reálném programu
+mohla být z externí knihovny, která při přechodu na novou verzi trošku změnila
+vnitřní implementaci):</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">print_blinkies</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">blinky</span> <span class="ow">in</span> <span class="n">blinkies</span><span class="p">:</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.001</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">blinky</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">end</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">)</span>
+</pre></div><p>Tohle se samozřejmě dá řešit např. zámkem kolem volání <code>print_blinkies</code>.
+Chyby tohoto typu ale mají tendenci se projevovat jen zřídka: i původní
+program bez <code>sleep</code> byl napsaný špatně, jen se to <em>většinou</em> neprojevilo.</p>
+<p>Jiný způsob, jak tohle vyřešit, je naimplementovat <em>smyčku událostí</em>.
+Kdykoli je potřeba pozastavit běh některé úlohy, tak zbytek úlohy naplánujeme
+na nějaký pozdější čas, a mezitím spouštíme úlohy, které byly naplánovány
+na dříve.</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+
+<span class="k">def</span> <span class="nf">print_blinkies</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">blinky</span> <span class="ow">in</span> <span class="n">blinkies</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">blinky</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">end</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="n">blinkies</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">class</span> <span class="nc">Blinky</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">open_eyes</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_face</span>
+
+    <span class="k">def</span> <span class="nf">set_face</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="n">new</span>
+        <span class="n">print_blinkies</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">close_eyes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(-.-)&#39;</span><span class="p">)</span>
+        <span class="n">schedule</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">open_eyes</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">open_eyes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(o.o)&#39;</span><span class="p">)</span>
+        <span class="n">schedule</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">expovariate</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">close_eyes</span><span class="p">)</span>
+
+
+<span class="c1"># Scheduling via a list of [remaining time, function to run] pairs:</span>
+
+<span class="n">task_entries</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">def</span> <span class="nf">schedule</span><span class="p">(</span><span class="n">wait_time</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Schedule &quot;task&quot; to occur &quot;wait_time&quot; seconds from now&quot;&quot;&quot;</span>
+    <span class="n">task_entries</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">wait_time</span><span class="p">,</span> <span class="n">task</span><span class="p">])</span>
+
+<span class="n">blinkies</span> <span class="o">=</span> <span class="p">[</span><span class="n">Blinky</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)]</span>
+
+
+<span class="c1"># Simple event loop</span>
+<span class="k">while</span> <span class="n">task_entries</span><span class="p">:</span>
+    <span class="c1"># Get the entry with the least remaining time</span>
+    <span class="n">task_entries</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="o">-</span><span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">wait_time</span><span class="p">,</span> <span class="n">task</span> <span class="o">=</span> <span class="n">task_entries</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+    <span class="c1"># Wait (this ignores the time needed to actually run code</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">wait_time</span><span class="p">)</span>
+
+    <span class="c1"># Decrease remaining time for all tasks by the time waited</span>
+    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">task_entries</span><span class="p">:</span>
+        <span class="n">entry</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-=</span> <span class="n">wait_time</span>
+
+    <span class="c1"># Run the actual task</span>
+    <span class="n">task</span><span class="p">()</span>
+</pre></div><p>V tomto řešení nefigurují vlákna: každá funkce se provede celá najednou,
+a ostatní úlohy běží pouze mezi jednotlivými funkcemi jedné úlohy.
+Mnohem lépe se tak ověřuje správnost programu.</p>
+<p>Tohle řešení je ale docela těžkopádné.
+Chtěli jsme napsat <em>cyklus</em>, ale místo toho máme dvě funkce, co se "volají"
+navzájem. Není z toho poznat, že jde o cyklus.
+A to je jen jednoduchý příklad – složitější logika by byla ještě
+nepřehlednější.
+(Programy pro knihovny jako Twisted nebo Node.js se tradičně píšou tímto způsobem.
+Jazyky jako JavaStript na to mají trochu pohodlnější syntaxi, přesto se
+pro extrémní případy této nepřehlednosti vžilo označení <em>callback hell</em>.)</p>
+<p>Naštěstí ale v Pythonu umíme napsat funkce, které lze "pozastavit" – generátory!
+S drobnou změnou smyčky událostí lze náš program zapsat opět téměř
+procedurálně, ale s tím, že k přepínání úloh dochází jen na
+vyznačených místech: tam, kde použijeme <code>yield</code>.</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+
+<span class="k">def</span> <span class="nf">print_blinkies</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">blinky</span> <span class="ow">in</span> <span class="n">blinkies</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">blinky</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">end</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Blinky</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="s1">&#39;(o.o)&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_face</span>
+
+    <span class="k">def</span> <span class="nf">set_face</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="n">new</span>
+        <span class="n">print_blinkies</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(-.-)&#39;</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(o.o)&#39;</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">random</span><span class="o">.</span><span class="n">expovariate</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+
+
+<span class="c1"># Scheduling via a list of [remaining time, generator] pairs:</span>
+
+<span class="n">blinkies</span> <span class="o">=</span> <span class="p">[</span><span class="n">Blinky</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)]</span>
+
+<span class="n">task_entries</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">run</span><span class="p">()]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">blinkies</span><span class="p">]</span>
+
+
+<span class="c1"># Simple event loop</span>
+<span class="k">while</span> <span class="n">task_entries</span><span class="p">:</span>
+    <span class="c1"># Get the entry with the least remaining time</span>
+    <span class="n">task_entries</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="o">-</span><span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">wait_time</span><span class="p">,</span> <span class="n">task</span> <span class="o">=</span> <span class="n">task_entries</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># Wait (this ignores the time needed to actually run code</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">wait_time</span><span class="p">)</span>
+
+    <span class="c1"># Decrease remaining time for all tasks by the time waited</span>
+    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">task_entries</span><span class="p">:</span>
+        <span class="n">entry</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-=</span> <span class="n">wait_time</span>
+
+    <span class="c1"># Run the actual task</span>
+    <span class="n">new_time</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+    <span class="n">task_entries</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_time</span>
+</pre></div><p>Na tomto principu je postavené moderní API, které se pro podobné úlohy používá.
+Než si ho ale ukážeme, pojďme se na chvíli podívat do historie.</p>
+<h2>Souběžnost v Pythonu</h2>
+<p>V Pythonu existovala a existuje řada knihoven, které nám umožňují "dělat více
+věcí zároveň".
+Základ jsou <code>threading</code>, tedy podpora pro vlákna, a <code>multiprocessing</code>, tedy
+způsob jak spustit nový pythonní proces, ve kterém se provede určitá funkce
+(přičemž vstup a výstup se předává serializovaný přes <em>pipes</em>).</p>
+<p>Další knihovna, kterou lze z PyPI nainstalovat, je <a href="https://greenlet.readthedocs.io/en/latest/">greenlet</a>.
+Ta nám dává k dispozici tzv. <em>mikro-vlákna</em>,
+která se mezi sebou přepínají v rámci jednoho procesu.
+Na rozdíl od systémových vláken nepotřebují tolik paměti navíc, ale
+stále jde o <em>preemptivní</em> strategii: k přepnutí může dojít kdykoli,
+je tedy potřeba zamykat a složitě hledat málo časté chyby.</p>
+<p>Byly vyvinuty i knihovny pro <em>kooperativní</em> přepínání, založené na tzv.
+<em>futures</em> (které vysvětlíme vzápětí).
+Nejznámější jsou <a href="https://twistedmatrix.com/trac/">Twisted</a> a <a href="http://www.tornadoweb.org/en/stable/">Tornado</a>.
+Obě jsou relativně staré (2002, resp. 2009), ale stále populární.</p>
+<p>Ačkoli byly Twisted, Tornado a podobné knihovny užitečné, jejich problém
+byl v tom, že má každá jiné API.
+Vznikaly tak kolem nich ekosystémy vázané na konkrétní knihovnu:
+server napsaný pro Tornado se nedal použít pod Twisted, a aplikace
+využívající Twisted nemohla využít knihovnu pro Tornado.</p>
+<p>Jak to vyřešit?</p>
+<h2>Jeden standard</h2>
+<p><img src="http://imgs.xkcd.com/comics/standards.png" alt="xkcd 927"></p>
+<p><em>Komiks <a href="https://xkcd.com/927/">xkcd</a>, © Randall Munroe, <a href="http://creativecommons.org/licenses/by-nc/2.5/">CC-BY-NC</a></em></p>
+<p>Podobně jako přístup k různým SQL databázím je v Pythonu standardizovaný
+(knihovny pro SQLite, Postgres, MySQL atd. všechny podporují API definované
+v <a href="https://www.python.org/dev/peps/pep-0249/">PEP 249</a>), nebo je standardizované API webových serverů (WSGI, <a href="https://www.python.org/dev/peps/pep-3333/">PEP 3333</a>),
+tak vzniklo standardizované API pro kooperativní multitasking.
+Toto API je definováno v <a href="https://www.python.org/dev/peps/pep-3156/">PEP 3156</a>, a jeho referenční implementace, <code>asyncio</code>,
+je od Pythonu 3.4 ve standardní knihovně.
+(Pro Python 3.3 se dá asyncio stáhnout <a href="https://pypi.python.org/pypi/asyncio">z PyPI</a>.)
+Interně je <code>asyncio</code> postavené na konceptu <em>futures</em> inspirovaných Tornado/Twisted,
+ale jeho "hlavní" API je postavené na <em>coroutines</em> podobných generátorům.</p>
+<p>Od Pythonu verze 3.5 používá asyncio místo normálních generátorů (<code>yield from</code>)
+speciální syntaxi, která "asynchronní funkce" dovoluje kombinovat s příkazy
+<code>for</code> a <code>with</code> (a v budoucnu snad i se samotným <code>yield</code>).
+Tuto syntaxi použijeme i tady; máte-li starší Python, podívejte se na potřebné změny uvedené níže.</p>
+<p>Náš příklad s animací vypadá v <code>asyncio</code> takto:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">asyncio</span>
+
+
+<span class="k">def</span> <span class="nf">print_blinkies</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">blinky</span> <span class="ow">in</span> <span class="n">blinkies</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">blinky</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">end</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Blinky</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="s1">&#39;(o.o)&#39;</span>
+        <span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_face</span>
+
+    <span class="k">def</span> <span class="nf">set_face</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_face</span> <span class="o">=</span> <span class="n">new</span>
+        <span class="n">print_blinkies</span><span class="p">()</span>
+
+    <span class="n">async</span> <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(-.-)&#39;</span><span class="p">)</span>
+            <span class="n">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_face</span><span class="p">(</span><span class="s1">&#39;(o.o)&#39;</span><span class="p">)</span>
+            <span class="n">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">expovariate</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>
+
+
+<span class="n">blinkies</span> <span class="o">=</span> <span class="p">[</span><span class="n">Blinky</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)]</span>
+
+<span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
+<span class="n">loop</span><span class="o">.</span><span class="n">run_forever</span><span class="p">()</span>
+<span class="n">loop</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div><p>V Pythonu verze 3.4 a nižší neexistují klíčová slova <code>async</code> a <code>await</code>, takže je potřeba
+místo:</p>
+<div class="highlight"><pre><span></span><span class="n">async</span> <span class="k">def</span> <span class="o">...</span><span class="p">:</span>
+    <span class="n">await</span> <span class="o">...</span>
+</pre></div><p>psát:</p>
+<div class="highlight"><pre><span></span><span class="nd">@asyncio.coroutine</span>
+<span class="k">def</span> <span class="o">...</span><span class="p">:</span>
+    <span class="k">yield from</span> <span class="o">...</span>
+</pre></div><p>(Zajímavé je, že dekorátor <code>asyncio.coroutine</code> toho nedělá mnoho: označí funkci
+jako <em>coroutine</em>, v <em>debug</em> módu zapne něco navíc, a pokud ve funkci není <code>yield</code>,
+udělá z ní generátor. Téměř vše tak bude fungovat i bez tohoto dekorátoru – ale
+doporučujeme ho použít, už jen jako dokumentaci.)</p>
+<p>Starý způsob zatím funguje i v novějším Pythonu, a dokonce se objevuje i v dokumentaci.</p>
+<h2>Event Loop</h2>
+<p>Knihovna <code>asyncio</code> nám dává k dispozici <em>smyčku událostí</em>, která se, podobně jako
+<code>app.exec</code> v Qt, stará o plánování jednotlivých úloh.
+Každé vlákno může mít vlastní smyčku událostí, kterou získáme pomocí
+<code>asyncio.get_event_loop</code>, a pak ji můžeme spustit dvěma způsoby:</p>
+<ul>
+<li><code>loop.run_forever</code> spustí smyčku na tak dlouho, dokud jsou nějaké úlohy
+naplánovány (to trochu odporuje názvu, ale většinou se nestává že by se
+úlohy "vyčerpaly"), nebo</li>
+<li><code>loop.run_until_complete</code> – tahle funkce skončí hned, jakmile je hotová
+daná úloha, a vrátí její výsledek.</li>
+</ul>
+<h2>Futures</h2>
+<p>Jak už bylo řečeno, knihovna <code>asyncio</code> je uvnitř založená na <em>futures</em>.
+Copak to je?</p>
+<p><code>Future</code> je objekt, který reprezentuje budoucí výsledek nějaké operace.
+Poté, co tato operace skončí, se výsledek dá zjistit pomocí metody <code>result()</code>;
+jestli je operace hotová se dá zjistit pomocí <code>done()</code>.
+<code>Future</code> se dá popsat jako "krabička" na vrácenou hodnotu – než tam něco
+tu hodnotu dá, musíme počkat, a poté je hodnota stále k dispozici.
+Tohle čekání se dělá pomocí <code>await</code> (nebo <code>loop.run_until_complete</code>).</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">asyncio</span>
+
+
+<span class="n">async</span> <span class="k">def</span> <span class="nf">set_future</span><span class="p">(</span><span class="n">fut</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sets the value of a Future, after a delay&quot;&quot;&quot;</span>
+    <span class="n">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">fut</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span>
+
+
+<span class="n">async</span> <span class="k">def</span> <span class="nf">get_future</span><span class="p">(</span><span class="n">fut</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Receives the value of a Future, once it&#39;s ready&quot;&quot;&quot;</span>
+    <span class="n">await</span> <span class="n">fut</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">fut</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="n">future</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Future</span><span class="p">()</span>
+
+
+<span class="c1"># Schedule the &quot;set_future&quot; task (explained later)</span>
+<span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="n">set_future</span><span class="p">(</span><span class="n">future</span><span class="p">))</span>
+
+
+<span class="c1"># Run the &quot;get_future&quot; coroutine until complete</span>
+<span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_until_complete</span><span class="p">(</span><span class="n">get_future</span><span class="p">(</span><span class="n">future</span><span class="p">))</span>
+<span class="n">loop</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div><p>Do <code>Future</code> se dá vložit i výjimka: pokud proces, který by <code>Future</code>
+naplnil, selže, může výjimku uložit do <code>Future</code> místo výsledku,
+a <code>result()</code> potom tuto výjimku způsobí v kódu, který by výsledek zpracovával.</p>
+<p>Na <code>Future</code> se navíc dají navázat funkce, které se zavolají jakmile je
+výsledek k dispozici.
+Dá se tak implementovat <em>callback</em> styl programování, který jsme si
+popsali výše – takhle, pomocí <em>futures</em> &amp; <em>callbacks</em> se před nástupem
+generátorů programovalo pro knihovny jako <code>Twisted</code>.</p>
+<p>A ještě jedna věc: <code>await</code> (podobně jako <code>yield</code>) je výraz, jehož
+hodnota je výsledek dané <code>Future</code>.
+Kód výše tak můžeme zjednodušit:</p>
+<div class="highlight"><pre><span></span><span class="n">async</span> <span class="k">def</span> <span class="nf">get_future</span><span class="p">(</span><span class="n">fut</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Receives the value of a Future, once it&#39;s ready&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">await</span> <span class="n">fut</span><span class="p">)</span>
+</pre></div><p>Další vlastnost <code>Future</code> je ta, že se dá "zrušit": pomocí <code>Future.cancel()</code>
+signalizujeme úloze, která má připravit výsledek, že už ten výsledek
+nepotřebujeme.
+Po zrušení bude <code>result()</code> způsobovat <code>CancelledError</code>.</p>
+<h2>Async funkce a Task</h2>
+<p>Jak jsme viděli v příkladu s animací, používání <em>callback</em> funkcí je těžkopádné.
+<code>Future</code> situaci trochu zlepšije, ale ne o moc.
+V <code>asyncio</code> se <code>Future</code> používají hlavně proto, že je na ně jednoduché
+navázat existující knihovny.
+Aplikační kód je ale lepší psát pomocí <code>async</code> funkcí, tak jako v příkladu
+výše.</p>
+<p>Asynchronní funkce se dají kombinovat pomocí <code>await</code> podobně jako generátory
+pomocí <code>yield from</code>.
+Nevýhoda async funkcí spočívá v tom, že na každé zavolání async funkce lze
+použít jen jeden <code>await</code>: na rozdíl od <code>Future</code> se výsledek nikam neukládá;
+jen se po skončení jednou předá.</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">asyncio</span>
+
+<span class="n">async</span> <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="n">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+
+<span class="n">async</span> <span class="k">def</span> <span class="nf">demo</span><span class="p">():</span>
+    <span class="n">coroutine</span> <span class="o">=</span> <span class="n">add</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;The result is:&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">await</span> <span class="n">coroutine</span><span class="p">))</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;The result is:&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">await</span> <span class="n">coroutine</span><span class="p">))</span>  <span class="c1"># chyba!</span>
+
+
+<span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_until_complete</span><span class="p">(</span><span class="n">demo</span><span class="p">())</span>
+<span class="n">loop</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div><p>Tenhle problém můžeme vyřešit tak, že asynchronní funkci "zabalíme" do <code>Future</code>.
+Na to ma dokonce <code>asyncio</code> speciální funkci <code>ensure_future</code>, která:</p>
+<ul>
+<li>dostane-li asynchronní funkci, "zabalí" ji do <code>Future</code>, a</li>
+<li>výsledek přímo naplánuje na smyčce událostí, takže se asynchronní funkce
+časem začne provádět.</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="n">async</span> <span class="k">def</span> <span class="nf">demo</span><span class="p">():</span>
+    <span class="n">coroutine</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="n">add</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;The result is:&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">await</span> <span class="n">coroutine</span><span class="p">))</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;The result is:&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">await</span> <span class="n">coroutine</span><span class="p">))</span>  <span class="c1"># OK!</span>
+</pre></div><p>Výsledek <code>ensure_future</code> je speciální druh <code>Future</code> zvaný <code>Task</code>.
+Ten má oproti normální <code>Future</code> několik vlastností navíc, ale v podstatě
+ho zmiňujieme jen proto, abyste věděli co <code>Task</code> znamená, až se vám objeví v
+chybové hlášce.</p>
+<h2>Fan-Out a Fan-In</h2>
+<p>S pomocí asynchronních funkcí můžeme nad našimi programy přemýšlet tak,
+jako by to byly "normální" procedurálně zapsané algoritmy: máme jedno
+"vlákno", které se provádí od začátku do konce, jen na některých místech
+(označených <code>await</code>) se provádění přeruší a zatímco náš kód čeká na výsledek
+nějaké operace, může se spustit jiný kus kódu.
+Funkce, na které je takto potřeba čekat, bývají v dokumentaci patřičně
+označeny.
+V síťovém programování je to většinou čtení ze socketů nebo inicializace
+či ukončení serveru.</p>
+<p>Pomocí <code>ensure_future</code> a <code>await</code> můžeme ale dělat něco navíc:
+rozdělit běh našeho programu na víc úloh, které se budou vykonávat "souběžně" –
+například autor scraperu chce stáhnout několik stránek najednou,
+nebo server souběžně odpovídá na několik požadavků.
+Tomuto rozdělení se říká <em>fan-out</em>.</p>
+<p>Opačná operace je <em>fan-in</em>, kdy několik úloh opět spojíme do jedné.
+Výše uvedený scraper může počkat, než jsou všechny stránky stažené –
+typicky pomocí jednoho <code>await</code> pro každý <code>Task</code>, po kterém může
+pokračovat zpracováním získaných dat.</p>
+<p>Co se týče Webového serveru, může se zdát, že tady není potřeba explicitně
+počkat na výsledek každého úkolu.
+Ale není to tak – i tady je poměrně důležité na každou úlohu nastartovanou
+pomocí <code>ensure_future</code> "počkat" pomocí <code>await</code> – už jen proto, abychom
+zachytili případnou výjimku.
+Neuděláme-li to, <code>asyncio</code> bude (minimálně v <em>debug módu</em>) vypisovat
+chybové hlášky.</p>
+<h2>Asynchronní cykly a kontexty</h2>
+<p>Až budete používat některé "asynchronní" knihovny, setkáte se pravděpodobně se dvěma
+novými konstrukcemi: <code>async for</code> a <code>async with</code>.</p>
+<p>Fungují jako jejich "ne-<code>async</code>" varianty, jen na začátku a konci každé iterace (resp.
+na začátku a konci bloku) můžou přerušit vykonávání funkce – podobně jako <code>await</code>.</p>
+<p>Typický příklad je u databází: začátek a konec transakce i získávání jednotlivých
+řádků pravděpodobně potřebují komunikaci po síti, takže hypotetická databázová
+knihovna by se mohla používat nějak takto:</p>
+<div class="highlight"><pre><span></span><span class="n">async</span> <span class="k">with</span> <span class="n">database</span><span class="o">.</span><span class="n">transaction</span><span class="p">():</span>
+    <span class="n">await</span> <span class="n">database</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s1">&#39;UPDATE ...&#39;</span><span class="p">)</span>
+    <span class="n">async</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="p">(</span><span class="n">await</span> <span class="n">database</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s1">&#39;SELECT ...&#39;</span><span class="p">)):</span>
+        <span class="n">handle</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+</pre></div><h2>Komunikace</h2>
+<p>Ono <code>io</code> v <code>asyncio</code> naznačuje, že je tato knihovna dělaná především na
+vstup a výstup – konkrétně na komunikaci přes síť (případně s jinými procesy).</p>
+<p>Ke komunikaci používá <code>asyncio</code> tři úrovně abstrakce: <code>Transport</code>, <code>Protocol</code>,
+a <code>Stream</code>.
+V krátkosti si je tu popíšeme; detaily pak najdete v dokumentaci (je pro nás
+totiž mnohem důležitější abyste pochopili principy, než abyste uměli konkrétní
+API, které lze dohledat v dokumentaci).</p>
+<p>Transporty a protokoly jsou postaveny na konceptech knihovny <code>Twisted</code>.</p>
+<p><code>Transport</code> zajišťuje samotné posílání bajtů mezi počítači (transportní vrstvu), kdežto
+<code>Protocol</code> implementuje nějaký aplikační protokol.
+<code>Transport</code> většinou nepíšeme sami, použijeme existující.
+V <code>asyncio</code> jsou zabudované transporty pro TCP, UDP a SSL.
+<code>Protocol</code> je pak použit pro implementaci konkrétních protokolů jako
+<code>HTTP</code>, <code>FTP</code>, a podobně.
+V dokumentaci najdete podrobnější popis včetně <a href="https://docs.python.org/3/library/asyncio-protocol.html#tcp-echo-server-protocol">příkladů</a>.</p>
+<p>Kromě toho existuje i "Stream API" založené na asynchronních funkcích.
+Většinou platí, že operace <em>otevření</em>, <em>čtení</em>, <em>flush</em> a <em>zavření</em> Streamu
+jsou asynchronní funkce (v dokumentaci označované jako <em>coroutines</em>), a je
+tedy nutné je použít s <code>await</code>; oproti tomu <em>zápis</em> asynchronní není – data
+se uloží do bufferu a pošlou se, až to bude možné.</p>
+<p>Typicky ale místo čistého <code>asyncio</code> použijeme existující knihovnu.
+Tady je příklad z knihovny <code>aiohttp</code>, která implementuje server a klienta
+pro HTTP:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">import</span> <span class="nn">aiohttp</span>
+
+<span class="n">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="c1"># Use a a session</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">()</span>
+    <span class="n">async</span> <span class="k">with</span> <span class="n">session</span><span class="p">:</span>
+
+        <span class="c1"># Get the response (acts somewhat like a file; needs to be closed)</span>
+        <span class="n">async</span> <span class="k">with</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">as</span> <span class="n">response</span><span class="p">:</span>
+
+            <span class="c1"># Fetch the whole text</span>
+            <span class="n">html</span> <span class="o">=</span> <span class="n">await</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">()</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">html</span><span class="p">)</span>
+
+<span class="n">loop</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span>
+<span class="n">loop</span><span class="o">.</span><span class="n">run_until_complete</span><span class="p">(</span><span class="n">main</span><span class="p">(</span><span class="s1">&#39;http://python.cz&#39;</span><span class="p">))</span>
+<span class="n">loop</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div><h2>A další</h2>
+<p>Nakonec několik tipů, o kterých je dobré vědět.</p>
+<p>V <code>asyncio</code> najdeme synchronizační mechanismy známé z vláknového programování, např.
+<code>Lock</code> a <code>Semaphore</code> – viz <a href="https://docs.python.org/3/library/asyncio-sync.html">dokumentace</a>.</p>
+<p>Musíme-li použít blokující funkci, která např. komunikuje po síti bez <code>await</code>, a která by
+tedy zablokovala i všechny ostatní úlohy, můžeme použít
+<code>loop.run_in_executor()</code>, a tím danou funkci zavolat ve vlákně nebo podprocesu, ale výsledek zpřístupnit
+pomocí <code>asyncio.Future</code>.
+Použití je opět popsáno v <a href="https://docs.python.org/3/library/asyncio-eventloop.html#executor">dokumentaci</a>.</p>
+<p>Občas vás při programování s <code>asyncio</code> zaskočí zrádná chyba.
+V takových případech je dobré zapnout <em>debug</em> režim pomocí proměnné prostředí <code>PYTHONASYNCIODEBUG=1</code>.
+V tomto režimu asyncio upozorňuje na časté chyby, do některých chybových výpisů přidává informaci o tom,
+kde aktuální <code>Task</code> vznikl, apod.
+Více informací je zase v <a href="https://docs.python.org/3/library/asyncio-dev.html#asyncio-dev">dokumentaci</a>.</p>
+<h2>AsyncIO a Qt</h2>
+<p>Jak bylo zmíněno na začátku, hlavní cíl <code>asyncio</code> je definovat společné rozhraní
+pro různé asynchronní knihovny, aby bylo možné např. kombinovat knihovny pro
+Tornado se smyčkou událostí v Twisted.
+Samotná knihovna <code>asyncio</code> je jen jedna z mnoha implementací tohoto rozhraní.
+Zajímavá je například knihovna <a href="https://pypi.python.org/pypi/uvloop/">uvloop</a>, která je asi 2-4× rychlejší než <code>asyncio</code>
+(ale má závislosti, které se pro součást standardní knihovny nehodí).</p>
+<p>Další zajímavá implementace je <a href="https://pypi.python.org/pypi/Quamash">Quamash</a>, která pod standardním <code>asyncio</code> API používá
+smyčku událostí z Qt.
+Umožňuje tak efektivně zpracovávat Qt události zároveň s asynchronními funkcemi
+známými z <code>asyncio</code>.</p>
+<p><em>Event loop</em> z <code>quamash</code> je potřeba na začátku programu naimportovat a nastavit
+jako hlavní smyčku událostí:</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quamash</span> <span class="kn">import</span> <span class="n">QEventLoop</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="p">([])</span>
+<span class="n">loop</span> <span class="o">=</span> <span class="n">QEventLoop</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+<span class="n">asyncio</span><span class="o">.</span><span class="n">set_event_loop</span><span class="p">(</span><span class="n">loop</span><span class="p">)</span>
+</pre></div><p>a poté ji, místo Qt-ovského <code>app.exec()</code>, spustit:</p>
+<div class="highlight"><pre><span></span><span class="n">loop</span><span class="o">.</span><span class="n">run_forever</span><span class="p">()</span>
+</pre></div><p>Jednotlivé asynchronní funkce se pak používají jako v čistém <code>asyncio</code>:
+pomocí <code>asyncio.ensure_future</code>, <code>await</code>, atd.</p>
+<p>Ukázka:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">asyncio</span>
+
+<span class="kn">from</span> <span class="nn">PyQt5</span> <span class="kn">import</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtWidgets</span>
+<span class="kn">from</span> <span class="nn">quamash</span> <span class="kn">import</span> <span class="n">QEventLoop</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="p">([])</span>
+<span class="n">loop</span> <span class="o">=</span> <span class="n">QEventLoop</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+<span class="n">asyncio</span><span class="o">.</span><span class="n">set_event_loop</span><span class="p">(</span><span class="n">loop</span><span class="p">)</span>
+
+<span class="n">display</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QLCDNumber</span><span class="p">()</span>
+<span class="n">display</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="s1">&#39;Stopwatch&#39;</span><span class="p">)</span>
+
+<span class="n">display</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="n">async</span> <span class="k">def</span> <span class="nf">update_time</span><span class="p">():</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="n">display</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">+=</span> <span class="mi">1</span>
+
+<span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="n">update_time</span><span class="p">())</span>
+
+<span class="n">loop</span><span class="o">.</span><span class="n">run_forever</span><span class="p">()</span>
+</pre></div><h1>Úkol</h1>
+<p>Vaším úkolem za 5 bodů je vytvořit asynchronní třídy reprezentující jednotlivé postavy v bludišti a rozhraní umožňující je spustit.</p>
+<p>Program musí stále splňovat zadání z předchozího cvičení, zejména:</p>
+<ul>
+<li>nesmí při žádné interakci uživatele s rozhraním zhavarovat</li>
+<li>musí se dát nainstalovat a spustit pomocí <code>python -m pip install -r requirements.txt</code>; <code>python setup.py develop</code>; <code>python -m maze</code></li>
+</ul>
+<p>Do programu přidejte rozhraní pro spuštění hry.
+Doporučujeme přidat do menu a lišty nástrojů <code>QAction</code> s atributem <code>checkable=True</code>.
+Můžete ale použít i jiný vhodný způsob, kterým lze režim hry zapnout, ale i vypnout (přechod zpět do editačního módu).</p>
+<p>Není možné začít hrát, pokud od některé z postav nevede žádná cesta k cíli. Této situaci vhodně zabraňte.</p>
+<p>Do vizualizátoru bludiště doplňte funkcionalitu hry. V režimu hry:</p>
+<ul>
+<li>nebudou zobrazeny čáry od postav k cíli</li>
+<li>půjde pouze bořit či stavět zdi<ul>
+<li>pokud máte více typů zdí, půjde bořit/stavět pouze jeden druh z nich (<code>-1</code>)</li>
+<li>zeď nepůjde stavět na políčko, kde je aktuálně nějaké postava</li>
+<li>postavit zeď půjde pouze tehdy, pokud to žádnou postavu neodřízne od cíle</li>
+</ul>
+</li>
+<li>nebude vidět paleta</li>
+<li>úkolem hráče je měnit bludiště tak, aby co nejdéle bránil postavám dojít do cíle<ul>
+<li>v případě že libovolná postava dojde do libovolného cíle, hra končí</li>
+<li>v takovém případě informujte hráče o tom, jak dlouho vydržel odolávat náporu postav</li>
+</ul>
+</li>
+</ul>
+<p>Máte k dispozici základní třídu <code>Actor</code>, která reprezentuje aktora (postavu v bludišti):</p>
+<ul>
+<li><a href="/lessons/intro/async/static/actor.py">class Actor</a></li>
+</ul>
+<p>Tato třída definuje rozhraní jednotlivých postav a zároveň implementuje základní chování postavy - jde nejkratší cestou k cíli rychlostí jedno políčko za sekundu.
+Aby to mohlo fungovat, musí kód, který postavu používá:</p>
+<ul>
+<li>na začátku hry udělat kopii matici bludiště (aby se bylo možné vrátit do editačního módu) a všechny postavy z ní "vyndat" a inicializovat je jako aktory</li>
+<li>při zavolání <code>update_actor(actor)</code> zjistit, kde se postava nachází a překreslit ji,</li>
+<li>při ukončení hry nebo programu všem aktorům říct, že se mají zrušit svůj task<ul>
+<li><em>tip:</em> na úklid po skončení hlavní smyčky událostí se hodí <code>loop.run_until_complete()</code></li>
+</ul>
+</li>
+</ul>
+<p>Je třeba použít smyčku událostí z <code>quamash</code>.</p>
+<p>Rozhraní je definováno tak, aby nezáviselo na konkrétní implementaci vizualizace, uvnitř aktorů byste tedy neměli používat nic z Qt.
+Některé charaktery (viz další sekce) možná budou potřebovat použít další API vašeho gridu.</p>
+<p>Kromě úpravy rozhraní musíte implementovat několik aktorů, kteří dědí z třídy Actor a chovají se trochu jinak.</p>
+<h2>Aktoři</h2>
+<p>V bludišti máte 5 typů postav. Každá by měla mít jiné chování.
+Každá postava vychází svým chováním ze základního aktora, jde tedy k cíli nejkratší možnou cestou rychlostí jedno políčko za sekundu,
+pokud popis neříká jinak.</p>
+<p>Zde je seznam různých charakterů. Každé postavě přiřaďte jeden charakter podle typu postavy (barva na obrázku, číslo v matici).</p>
+<p>Charakterů je více než 5. Můžete si vybrat, kterých 5 použijete, musíte jich však použít minimálně 5 různých.
+Musíte implementovat alespoň dva z hvězdičkou označených charakterů.</p>
+<p>Poznámka o rychlostech: Když je nějaká postava rychlejší, neznamená to, že ve vašem cyklu v metodě <code>behavior</code> bude dělat delší kroky,
+ale že jeden krok bude trvat kratší dobu (metoda <code>step</code> má atribut <code>duration</code>).</p>
+<p>Při rozhodování o chování postav berte v úvahu hratelnost hry.</p>
+<h3>Rychlík</h3>
+<p>Rychlík má stabilně o 75 % vyšší rychlost než základní aktor.</p>
+<h3>Zrychlovač</h3>
+<p>Zrychlovač může po každém kroku s určitou pravděpodobností trvale zvýšit svou rychlost.
+Čím déle chodí, tím rychlejší může být. Pravděpodobnost nastavte tak, aby hra byla hratelná; zrychlení tak, aby bylo znatelné (např. o čtvrt políčka za sekundu).
+Doporučujeme nastavit i rychlostní strop, případně zrychlovat stále o menší a menší hodnotu.</p>
+<h3>Skokan *</h3>
+<p>Pokud je za jedním políčkem zdi průchozí políčko, odkud je cesta do cíle alespoň o 5 políček kratší, než z místa, kde se Skokan nachází,
+Skokan touto zdí projde (přeskočí ji). Kvůli hratelnosti doporučujeme nastavit limity na to, jak často se toto může dít,
+případně zakázat projít zdí přímo na cíl apod.</p>
+<p>Chcete-li, můžete implementovat animaci skoku přes zeď.</p>
+<h3>Teleportér *</h3>
+<p>Teleportér se místo kroku může s určitou pravděpodobností teleportovat na náhodné průchozí a dostupné místo bludiště.
+Při teleportu se postavička na malou chvíli rozechvěje, pak se přemístí a po chvilce se přestane chvět.
+Celá akce by měla trvat méně než sekundu.
+Doporučujeme zakázat teleport na políčka příliš blízko cíli.</p>
+<h3>Zmatkář</h3>
+<p>Zmatkář s určitou pravděpodobností místo kroku směrem k cíli provede krok náhodným průchozím směrem (pokud to je možné, tak jiným, než ze kterého přišel).</p>
+<h3>Sprinter</h3>
+<p>Sprinter zrychluje na rovných trasách.
+Pokud půjde klikatou cestou, je stejně pomalý jako základní aktor. Pokud ale půjde déle rovně, může být velmi rychlý.
+Na začátku hry a po každé změně směru má rychlost jako základní aktor.
+Každý další pohyb ve stejném směru ale vykonává rychleji, než ten předchozí.
+Pohyb v jiném směru je opět základní rychlostí.</p>
+<p>Doporučujeme nastavit rychlostní strop, případně zrychlovat stále o menší a menší hodnotu.</p>
+<p>Poznámka: Sprinter může chodit stejnou cestou jako základní aktor, nemusí cestu optimalizovat pro svoji schopnost.</p>
+<h3>Pravák *</h3>
+<p>Pravák se pohybuje bludištěm podle <a href="https://en.wikipedia.org/wiki/Maze_solving_algorithm#Wall_follower">pravidla pravé ruky</a>, místo toho, aby šel rovnou nejkratší cestou k cíli.
+Pokud má kolem sebe nějakou zeď, jde podél ní.
+Pokud se nachází ve volném prostoru a pravidlo nemůže aplikovat (např. na začátku, nebo pokud mu hráč jeho zeď zboří), chová se jako standardní aktor, dokud zeď nenajde nebo nedojde do cíle.</p>
+<p>Chcete-li, můžete detekovat, jestli se Pravák někde nezacyklil, a pokud ano, udělat nějaké rozumné kroky k tomu, aby se z prekérní situace dostal.</p>
+<h3>Dobíječ</h3>
+<p>Dobíječ nejprve stojí na místě náhodnou dobu (s exponenciálním rozdělením a střední hodnotou 5 sekund), dobíjí energii.
+Pak ujde tolik kroků, kolik celých sekund čekal, rychlostí 3 políčka za sekundu. A opět dobíjí/čeká...
+Z dlouhodobého hlediska se tedy pohybuje pomaleji než základní aktor, ale je nevyzpytatelnější.
+Při dobíjení si jednou za sekundu poskočí, aby hráč věděl, že tato postava se nezasekla.
+(Dobíjení můžete signalizovat nějak sofistikovaněji.)</p>
+<h3>Tanečník</h3>
+<p>Před každým krokem zkontroluje políčko před sebou (tj. ve směru cesty k cíli),
+diagonálně vpravo před sebou, a vpravo od sebe. Pokud jsou všechna tři volná, projde je
+a vrátí se zpět na původní políčko.
+Poté to samé udělá s políčky před sebou, diagonálně vlevo před sebou, a vlevo
+od sebe.
+Pak teprve udělá krok dopředu.</p>
+<p>Pokud hráč políčko, na které by měl Tanečník vstoupit, zastaví zdí,
+Tanečník poskočí, zbytek aktuálního "tance" neprovede, a pokračuje z aktuálního políčka.</p>
+<h3>Tlusťoch *</h3>
+<p>Pohybuje se o 25 % pomaleji než základní aktor.</p>
+<p>Nesmí vstoupit na políčko, na kterém je právě jiný aktor.
+Měl-li by to udělat, stojí místo toho na místě a odpočívá.</p>
+<p>Ostatní aktoři nesmí vstoupit na políčko, kde se právě nachází (nebo na které
+právě vstupuje) Tlusťoch. Pohybují se tak, jako by na pozici Tlusťocha byla zeď,
+tj. základní aktor se Tlusťocha snaží obejít, a pokud to nejde, skáče na místě.</p>
+<p>(Pravák Tlusťocha nepovažuje za zeď, podél které má jít; v případě, že mu Tlusťoch překáží, skáče na místě.
+Teleportér se na Tlusťocha nesmí teleportovat.)</p>
+<p>Tlusťoch ale nemá vliv na hráčovu schopnost stavět zdi, tj. pro tento účel se
+nepočítá jako překážka.</p>
+<h3>Smraďoch *</h3>
+<p>Smraďoch všem kromě ostatních Smraďochů smrdí, a chtějí od něj pryč.
+Pokud je v bezprostředním okolí (určete sami) ostatních aktorů (jiných charakterů), tito aktoři, pokud mohou, jdou směrem pryč od Smraďocha
+(bez ohledu na svou plánovanou trasu), až dokud se z dosahu Smraďocha nedostanou.
+Pokud nemohou pryč, se smradem se smíří a chovají se normálně.</p>
+<p>Při chůzi směrem pryč od Smraďocha se aktoři pohybují rychlostí dle svého charakteru.
+Tanečník (pokud může) tančí, Dobíječ (pokud musí) se dobíjí atp.</p>
+<p>Je na vás, jestli Smraďoch smrdí i přes zdi. Chcete-li, můžete rozsah smradu vizualizovat.</p>
+<h3>Vlastní</h3>
+<p>Implementujte jiné netriviální chovaní. Svůj záměr popište v README.</p>
+<p>Vyhněte se i triviálním variantám jiných chování, které jste již implementovali
+(např. máte-li Rychlíka, nedělejte v rámci vlastního zadání "Pomalíka", který je jen o trochu pomalejší než základní aktor.)</p>
+<p>Nakolik je chování netriviální, určujeme při hodnocení my.
+V případě pochybností se zeptejte pomocí issue nebo na cvičení.</p>
+<h2>Odevzdání, deadliny apod.</h2>
+<p>Váš úkol se skládá prakticky ze dvou částí:</p>
+<ul>
+<li>úprava GUI pro novou funkcionalitu</li>
+<li>asynchronní programování aktorů</li>
+</ul>
+<p>A zároveň je to poslední úkol kromě semestrálky.</p>
+<p>Proto na něj máte čas až do středy 28.12. 11:00. Nekažte si ale prosím kvůli úkolu Vánoce (a ani od nás v průběhu svátků nečekejte velkou komunikaci).</p>
+<p>Odevzdávejte standardně s tagem <code>v0.4</code>. V případě potřeby opět můžete využít naše <a href="http://github.com/encukou/maze">řešení</a> minulého úkolu.</p>
+
+        
+
+        
+
+    </div>
+</div>
+
+
+
+        <script type="text/javascript" src="/static/js/solutions.js"></script>
+
+        <div class="footer container">
+            <hr>
+            <div class="lesson-attribution">
+                <p>Uprav tuto stránku na <a href="https://github.com/pyvec/naucse.python.cz/blob/master/lessons/intro/async/index.md">GitHubu</a>.</p>
+
+                
+                    
+                        <p>Pro kurz MI-PYT na ČVUT napsali Petr Viktorin, Miro Hrončok a další, 2016-2017.</p>
+
+                    
+                    
+                        <p>
+                            Licence:
+                            <a href="https://creativecommons.org/licenses/by-sa/4.0/">
+                                Creative Commons Attribution-ShareAlike 4.0 International
+                            </a>
+                        </p>
+                    
+                
+            </div>
+        </div>
+
+        <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+        
+
+    </body>
+</html>
